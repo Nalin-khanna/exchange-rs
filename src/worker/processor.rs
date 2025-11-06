@@ -1,7 +1,7 @@
 #![allow(unused_variables , unused_mut, unused_parens , dead_code)]
 use tokio::sync::{mpsc, oneshot};
 use std::collections::HashMap;
-
+use crate::{hash, verify_password};
 #[derive(Debug)]
 pub enum Request {
     Signup {
@@ -37,7 +37,7 @@ pub fn spawn_background_worker () -> mpsc::Sender<(Request)>{
                         Request::Signin { username, password, resp } => {
                             match users.get(&username) {
                                 Some(user) => {
-                                    if user.password == password {
+                                    if verify_password(&password, &user.password) {
                                         println!("User signed in: {}", username); 
                                         // Send Ok with the username
                                         let _ = resp.send(Ok(username));

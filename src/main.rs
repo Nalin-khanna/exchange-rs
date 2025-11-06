@@ -20,7 +20,8 @@ async fn main() -> std::io::Result<()> {
     HttpServer::new(move|| {
         App::new()
         .app_data(web::Data::new(AppState{worker : worker.clone()}))
-            .route("/hey", web::get().to(manual_hello))
+            .service(signup)
+            .service(signin)
     })
     .bind(("127.0.0.1", 8080))?
     .run()

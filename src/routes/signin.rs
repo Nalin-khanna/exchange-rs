@@ -1,4 +1,4 @@
-use actix_web::{web, HttpResponse, Responder};
+use actix_web::{post ,web, HttpResponse, Responder};
 use tokio::sync::oneshot;
 use crate::{AppState, Request};
 use serde::Deserialize;
@@ -10,6 +10,7 @@ pub struct SigninPayload{
     password : String
 }
 
+#[post("/signin")]
 pub async fn signin (data : web::Data<AppState> , payload : web::Json<SigninPayload>) -> impl Responder {
     let (tx , mut rx) = oneshot::channel::<Result<String,String>>();
     let req = Request::Signin { 
