@@ -18,6 +18,7 @@ pub enum Request {
         username : String,
         option : Option , // Option A or Option B (yes or no)
         price : u64,
+        quantity : u64,
         resp: oneshot::Sender<Result<String, String>>
     }
 }
@@ -67,7 +68,7 @@ pub fn spawn_background_worker () -> mpsc::Sender<(Request)>{
                                 }
                             }
                         }
-                        Request::CreateLimitOrder { username, option, price, resp } => {
+                        Request::CreateLimitOrder { username, option, price, resp, quantity } => {
 
                         }
                     }
