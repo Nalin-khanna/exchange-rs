@@ -104,4 +104,63 @@ impl OrderBook {
         }
         trades
     }
+    
+    pub fn execute_market_order(&mut self , username : String , ordertype : Ordertype , mut quantity : u64 ) -> Vec<Trade> {
+        let mut trades = vec![];
+
+        match ordertype {
+            Ordertype::Buy => {
+                while quantity > 0 {
+                    if let Some((&lowest_sell_price, queue)) = self.sell.iter_mut().next() {
+                        if let Some(mut sell_order) = queue.pop_front() {
+                            let trade_qty = quantity.min(sell_order.quantity);
+                            quantity -= trade_qty;
+                            sell_order.quantity -= trade_qty;
+
+                            trades.push(
+                                Trade{
+                                    from : username.clone(),
+                                    to : sell_order.username.clone(),
+                                    trade_qty,
+                                    trade_price : lowest_sell_price
+                                }
+                            );
+
+                            if sell_order.quantity > 0 {
+                                queue.push_front(sell_order);
+                            }
+                        } else {
+                            self.sell.remove(&lowest_sell_price);
+                        }
+                    } else {
+                        break; // no sells left
+                    }
+                }
+            }
+
+            Ordertype::Sell => {
+                while quantity > 0 {
+                    if let Some((&highest_buy_price, queue)) = self.buy.iter_mut().next_back() {
+                        if let Some(mut buy_order) = queue.pop_front() {
+                            let trade_qty = quantity.min(buy_order.quantity);
+                            quantity -= trade_qty;
+                            buy_order.quantity -= trade_qty;
+
+                            trades.push(Trade { from: username.clone(), to: buy_order.username.clone(), trade_qty, trade_price: highest_buy_price });
+                            
+                            if buy_order.quantity > 0 {
+                                queue.push_front(buy_order);
+                            }
+                        } else {
+                            self.buy.remove(&highest_buy_price);
+                        }
+                    } else {
+                        break; // no buys left
+                    }
+                }
+            }
+        }
+
+        trades
+    }
 }
