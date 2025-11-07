@@ -22,6 +22,8 @@ async fn main() -> std::io::Result<()> {
         .app_data(web::Data::new(AppState{worker : worker.clone()}))
             .service(signup)
             .service(signin)
+            .service(create_limit_order)
+            .service(create_market_order)
     })
     .bind(("127.0.0.1", 8080))?
     .run()

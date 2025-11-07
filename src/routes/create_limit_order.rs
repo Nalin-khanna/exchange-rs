@@ -1,0 +1,35 @@
+use actix_web::{post ,web, HttpResponse, Responder};
+use tokio::sync::oneshot;
+use crate::{AppState, Request};
+use serde::Deserialize;
+use crate::order::*;
+
+#[derive(Deserialize)]
+struct OrderPayload {
+    username : String,
+    option : Option , // Option A or Option B (yes or no)
+    price : u64,
+    quantity : u64,
+    ordertype : Ordertype,
+}
+
+#[post("/limitorder")]
+pub async fn create_limit_order(data : web::Data<AppState> , payload : web::Json<OrderPayload>) -> impl Responder {
+    let (tx , mut rx) = oneshot::channel::<Result<String,String>>();
+    let req = Request::CreateLimitOrder { 
+        username: payload.username.clone(), 
+        option: payload.option.clone(), 
+        price: payload.price, 
+        quantity:payload.quantity,
+        ordertype: payload.ordertype.clone(), 
+        resp: tx
+    };
+    if let Err(_) = data.worker.send(req).await {
+        return HttpResponse::InternalServerError().body("Background worker creashed");
+    }
+    match rx.await {
+        Ok(Ok(msg)) => HttpResponse::Ok().body(msg),
+        Ok(Err(err)) => HttpResponse::BadRequest().body(err),
+        Err(_) => HttpResponse::InternalServerError().body("No response from worker"),
+    }
+}

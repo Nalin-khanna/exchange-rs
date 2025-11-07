@@ -1,5 +1,6 @@
 
 use chrono::{DateTime, Utc};
+use serde::Deserialize;
 use std::collections::{ BTreeMap , VecDeque};
 #[derive(Debug , Clone )]
 pub struct Order {
@@ -18,12 +19,12 @@ pub struct Trade {
     trade_qty : u64 ,
     trade_price : u64
 }
-#[derive(Debug , Clone , PartialEq, Hash, Eq )]
+#[derive(Debug , Clone , PartialEq, Hash, Eq , Deserialize)]
 pub enum Option {
     OptionA ,
     OptionB 
 }
-#[derive(Debug , Clone)]
+#[derive(Debug , Clone , Deserialize)]
 pub enum Ordertype{
     Buy,
     Sell
