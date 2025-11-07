@@ -3,12 +3,12 @@ use chrono::{DateTime, Utc};
 use std::collections::{ BTreeMap , VecDeque};
 #[derive(Debug , Clone )]
 pub struct Order {
-    price : u64, 
-    quantity : u64,
-    option: Option,
-    username : String,
-    timestamp: DateTime<Utc>,
-    ordertype: Ordertype,
+   pub price : u64, 
+   pub quantity : u64,
+   pub option: Option,
+   pub username : String,
+   pub timestamp: DateTime<Utc>,
+   pub ordertype: Ordertype,
     
 }
 #[derive(Debug , Clone )]
@@ -18,7 +18,7 @@ pub struct Trade {
     trade_qty : u64 ,
     trade_price : u64
 }
-#[derive(Debug , Clone )]
+#[derive(Debug , Clone , PartialEq, Hash, Eq )]
 pub enum Option {
     OptionA ,
     OptionB 
@@ -147,7 +147,7 @@ impl OrderBook {
                             buy_order.quantity -= trade_qty;
 
                             trades.push(Trade { from: username.clone(), to: buy_order.username.clone(), trade_qty, trade_price: highest_buy_price });
-                            
+
                             if buy_order.quantity > 0 {
                                 queue.push_front(buy_order);
                             }
