@@ -7,6 +7,8 @@ pub use worker::processor;
 pub use worker::*;
 pub mod utils;
 pub use utils::*;
+pub mod models;
+pub use models::*;
 
 async fn manual_hello() -> impl Responder {
     HttpResponse::Ok().body("Hey there!")

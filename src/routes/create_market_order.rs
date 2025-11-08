@@ -3,6 +3,7 @@ use tokio::sync::oneshot;
 use crate::{AppState, Request};
 use serde::Deserialize;
 use crate::order::*;
+use crate::request::*;
 
 #[derive(Deserialize)]
 struct MarketOrderPayload {
@@ -11,6 +12,7 @@ struct MarketOrderPayload {
     price : u64,
     quantity : u64,
     ordertype : Ordertype,
+    market_id : String
 }
 
 #[post("/marketorder")]
@@ -21,6 +23,7 @@ pub async fn create_market_order(data : web::Data<AppState> , payload : web::Jso
         option: payload.option.clone(), 
         quantity:payload.quantity,
         ordertype: payload.ordertype.clone(), 
+        market_id : payload.market_id.clone(),
         resp: tx
     };
     if let Err(_) = data.worker.send(req).await {

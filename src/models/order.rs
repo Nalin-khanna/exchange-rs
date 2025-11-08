@@ -2,6 +2,8 @@
 use chrono::{DateTime, Utc};
 use serde::Deserialize;
 use std::collections::{ BTreeMap , VecDeque};
+use crate::{User, UserHoldings};
+
 #[derive(Debug , Clone )]
 pub struct Order {
    pub price : u64, 
@@ -17,7 +19,7 @@ pub struct Trade {
     from : String,
     to : String ,
     trade_qty : u64 ,
-    trade_price : u64
+    trade_price : u64 ,
 }
 #[derive(Debug , Clone , PartialEq, Hash, Eq , Deserialize)]
 pub enum Option {
@@ -40,7 +42,8 @@ impl OrderBook {
     }
     pub fn add_limit_order(
         &mut self,
-        mut order : Order
+        mut order : Order,
+        user_holdings : &mut u64
     )-> Vec<Trade>{
         let mut trades = vec![];
         match order.ordertype {
@@ -51,12 +54,13 @@ impl OrderBook {
                             let trade_qty = order.quantity.min(sell_order.quantity);  // minimum quantity out of buy order and sell order popped from queue
                             order.quantity -= trade_qty;            //  minimum qty can only be matched
                             sell_order.quantity -= trade_qty;
+                            *user_holdings += trade_qty;
 
                             trades.push(Trade{
                                 from : order.username.clone(),
                                 to : sell_order.username.clone(),
                                 trade_qty,
-                                trade_price : lowest_sell_price
+                                trade_price : lowest_sell_price,
                             });
                             if sell_order.quantity > 0 {          // if there is still qty left , push it back to front of queue
                                 queue.push_front(sell_order);
@@ -79,6 +83,7 @@ impl OrderBook {
                             let trade_qty = order.quantity.min(buy_order.quantity);
                             order.quantity -= trade_qty;
                             buy_order.quantity -= trade_qty;
+                            *user_holdings -= trade_qty;
 
                             trades.push(Trade { 
                                 from: order.username.clone(), 
@@ -106,7 +111,7 @@ impl OrderBook {
         trades
     }
     
-    pub fn execute_market_order(&mut self , username : String , ordertype : Ordertype , mut quantity : u64 ) -> Vec<Trade> {
+    pub fn execute_market_order(&mut self , username : String , ordertype : Ordertype , mut quantity : u64 , user_holdings : &mut u64 ) -> Vec<Trade> {
         let mut trades = vec![];
 
         match ordertype {
@@ -117,6 +122,7 @@ impl OrderBook {
                             let trade_qty = quantity.min(sell_order.quantity);
                             quantity -= trade_qty;
                             sell_order.quantity -= trade_qty;
+                            *user_holdings += trade_qty;
 
                             trades.push(
                                 Trade{
@@ -146,7 +152,8 @@ impl OrderBook {
                             let trade_qty = quantity.min(buy_order.quantity);
                             quantity -= trade_qty;
                             buy_order.quantity -= trade_qty;
-
+                            *user_holdings -= trade_qty;
+                            
                             trades.push(Trade { from: username.clone(), to: buy_order.username.clone(), trade_qty, trade_price: highest_buy_price });
 
                             if buy_order.quantity > 0 {

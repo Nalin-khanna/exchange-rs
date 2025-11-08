@@ -5,25 +5,17 @@ use serde::Deserialize;
 use crate::order::*;
 
 #[derive(Deserialize)]
-struct OrderPayload {
-    username : String,
-    option : Option , // Option A or Option B (yes or no)
-    price : u64,
-    quantity : u64,
-    ordertype : Ordertype,
-    market_id : String
+struct CreateMarketPayload {
+    username : String, 
+    market_name : String
 }
 
-#[post("/limitorder")]
-pub async fn create_limit_order(data : web::Data<AppState> , payload : web::Json<OrderPayload>) -> impl Responder {
+#[post("/create_market")]
+pub async fn create_market(data : web::Data<AppState> , payload : web::Json<CreateMarketPayload>) -> impl Responder {
     let (tx , mut rx) = oneshot::channel::<Result<String,String>>();
-    let req = Request::CreateLimitOrder { 
+    let req = Request::CreateMarket { 
         username: payload.username.clone(), 
-        option: payload.option.clone(), 
-        price: payload.price, 
-        quantity:payload.quantity,
-        market_id : payload.market_id.clone(),
-        ordertype: payload.ordertype.clone(), 
+        market_name : payload.market_name.clone(),
         resp: tx
     };
     if let Err(_) = data.worker.send(req).await {

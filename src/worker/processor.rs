@@ -1,52 +1,15 @@
 #![allow(unused_variables , unused_mut, unused_parens , dead_code)]
 use tokio::sync::{mpsc, oneshot};
-use std::collections::{HashMap , BTreeMap , VecDeque};
-use chrono::{DateTime, Utc};
+use std::collections::{HashMap };
+use chrono::{Utc};
 use crate::utils::*;
-#[derive(Debug)]
-pub enum Request {
-    Signup {
-        username: String,
-        password : String,
-        resp: oneshot::Sender<Result<String, String>>
-    },
-    Signin {
-        username: String,
-        password : String,
-        resp: oneshot::Sender<Result<String, String>>
-    },
-    CreateLimitOrder{
-        username : String,
-        option : Option , // Option A or Option B (yes or no)
-        price : u64,
-        quantity : u64,
-        ordertype : Ordertype,
-        resp: oneshot::Sender<Result<String, String>>
-    },
-    CreateMarketOrder {
-    username: String,
-    option: Option,
-    quantity: u64,
-    ordertype: Ordertype,
-    resp: oneshot::Sender<Result<String, String>>,
-}
-}
-#[derive(Debug)]
-
-pub struct User {
-    username : String ,
-    password : String , 
-    balance: u64
-}
-
+use crate::models::*;
 
 pub fn spawn_background_worker () -> mpsc::Sender<(Request)>{
     let (tx , mut rx) = mpsc::channel::<(Request)>(30);
     tokio::spawn(async move {
         let mut users : HashMap<String, User> = HashMap::new();  //  Hashmap of all users
-        let mut orderbooks: HashMap<Option, OrderBook> = HashMap::new();  // OrderBooks is hashmap for option a and b 's orderbook
-        orderbooks.insert(Option::OptionA , OrderBook::new());
-        orderbooks.insert(Option::OptionB , OrderBook::new());
+        let mut markets : HashMap<String , Market> = HashMap::new();
         loop { 
             match rx.recv().await {
                 Some(req) => {
@@ -58,7 +21,7 @@ pub fn spawn_background_worker () -> mpsc::Sender<(Request)>{
                                 }
                                  None => {
                                     // balance on signup is given = 5000 
-                                    users.insert(username.clone(), User { username : username.clone(), password , balance : 5000});
+                                    users.insert(username.clone(), User { username : username.clone(), password , balance : 5000 , holdings : HashMap::new()});
                                     let _ = resp.send(Ok(username));
                                  }
                             }
@@ -80,8 +43,10 @@ pub fn spawn_background_worker () -> mpsc::Sender<(Request)>{
                                 }
                             }
                         }
-                        Request::CreateLimitOrder { username, option, price, resp, quantity , ordertype } => {
-                            if let Some(book) = orderbooks.get_mut(&option){
+                        Request::CreateLimitOrder { username, option, price, resp, quantity , ordertype , market_id} => {
+                            let user = users.get_mut(&username).unwrap();
+                            let user_holdings = user.holdings.get_mut(&market_id).unwrap();
+                            if let Some(market) = markets.get_mut(&market_id){
                                 let mut order = Order{
                                     price,
                                     quantity,
@@ -90,7 +55,7 @@ pub fn spawn_background_worker () -> mpsc::Sender<(Request)>{
                                     timestamp : Utc::now(),
                                     ordertype
                                 };
-                                let trades = book.add_limit_order(order);
+                                let trades = market.add_limit_order(order ,user_holdings);
                                 let msg = if trades.is_empty() {
                                     "Order placed, waiting to be matched.".to_string()
                                 } else{
@@ -101,9 +66,11 @@ pub fn spawn_background_worker () -> mpsc::Sender<(Request)>{
                                 let _ = resp.send(Err("Invalid option".to_string()));
                             }
                         }
-                        Request::CreateMarketOrder { username, option, quantity, ordertype, resp } => {
-                            if let Some(book) = orderbooks.get_mut(&option){
-                                let trades = book.execute_market_order(username.clone(), ordertype, quantity);
+                        Request::CreateMarketOrder { username, option, quantity, ordertype, resp , market_id  } => {
+                            let user = users.get_mut(&username).unwrap();
+                            let user_holdings = user.holdings.get_mut(&market_id).unwrap();
+                            if let Some(market) = markets.get_mut(&market_id){
+                                let trades = market.execute_market_order(username.clone(), ordertype, quantity , option , user_holdings);
                                 let msg = if trades.is_empty() {
                                     "Order placed, waiting to be matched.".to_string()
                                 } else{
@@ -113,6 +80,10 @@ pub fn spawn_background_worker () -> mpsc::Sender<(Request)>{
                             } else {
                                 let _ = resp.send(Err("Invalid option".to_string()));
                             }
+                        }
+                        Request::CreateMarket { username, market_name,resp } => {
+                            let market = Market::initialise_market(market_name, username);
+                            markets.insert(market.market_id.clone(), market);
                         }
                     }
                 }

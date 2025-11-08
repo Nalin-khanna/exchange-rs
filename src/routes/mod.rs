@@ -6,3 +6,5 @@ pub mod create_limit_order;
 pub use create_limit_order::*;
 pub mod create_market_order;
 pub use create_market_order::*;
+pub mod create_market;
+pub use create_market::*;
