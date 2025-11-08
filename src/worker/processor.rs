@@ -44,9 +44,9 @@ pub fn spawn_background_worker () -> mpsc::Sender<(Request)>{
                             }
                         }
                         Request::CreateLimitOrder { username, option, price, resp, quantity , ordertype , market_id} => {
-                            let user = users.get_mut(&username).unwrap();
-                            let user_holdings = user.holdings.get_mut(&market_id).unwrap();
+
                             if let Some(market) = markets.get_mut(&market_id){
+
                                 let mut order = Order{
                                     price,
                                     quantity,
@@ -55,7 +55,37 @@ pub fn spawn_background_worker () -> mpsc::Sender<(Request)>{
                                     timestamp : Utc::now(),
                                     ordertype
                                 };
-                                let trades = market.add_limit_order(order ,user_holdings);
+                                let mut trades = market.add_limit_order(order );
+
+                                //  balance update of both the parties done here 
+                                for trade in trades.iter_mut(){
+                                    let seller_name = &trade.from;
+                                    let buyer_name = &trade.to;
+                                    // handling self-trade 
+                                    if seller_name == buyer_name{
+                                        continue;
+                                    }
+                                   if let [Some(buyer) , Some(seller)] = users.get_disjoint_mut([buyer_name , seller_name]){
+
+                                    buyer.balance -= trade.trade_price * trade.trade_qty; //balance update
+                                    seller.balance += trade.trade_price *trade.trade_qty; 
+
+                                    let buyer_holdings = buyer.holdings.get_mut(&market_id).unwrap();
+                                    let seller_holdings = seller.holdings.get_mut(&market_id).unwrap();
+
+                                    match trade.stock_type {
+
+                                        Option::OptionA => {
+                                            buyer_holdings.stock_a += trade.trade_qty; //stock update
+                                            seller_holdings.stock_a -= trade.trade_qty;
+                                        }
+                                        Option::OptionB => {
+                                            buyer_holdings.stock_b += trade.trade_qty;
+                                            seller_holdings.stock_b -= trade.trade_qty;
+                                        }
+                                    }
+                                   }
+                                }
                                 let msg = if trades.is_empty() {
                                     "Order placed, waiting to be matched.".to_string()
                                 } else{
@@ -66,11 +96,37 @@ pub fn spawn_background_worker () -> mpsc::Sender<(Request)>{
                                 let _ = resp.send(Err("Invalid option".to_string()));
                             }
                         }
+
                         Request::CreateMarketOrder { username, option, quantity, ordertype, resp , market_id  } => {
                             let user = users.get_mut(&username).unwrap();
                             let user_holdings = user.holdings.get_mut(&market_id).unwrap();
                             if let Some(market) = markets.get_mut(&market_id){
-                                let trades = market.execute_market_order(username.clone(), ordertype, quantity , option , user_holdings);
+                                let trades = market.execute_market_order(username.clone(), ordertype, quantity , option );
+                                for trade in trades.iter(){
+                                    let buyer_name = &trade.to;
+                                    let seller_name = &trade.from;
+                                    // handling self-trade 
+                                    if seller_name == buyer_name{
+                                        continue;
+                                    }
+                                    if let [Some(buyer) , Some(seller)] = users.get_disjoint_mut([buyer_name,seller_name]){
+                                        buyer.balance -= trade.trade_price * trade.trade_qty; //balance update
+                                        seller.balance += trade.trade_price *trade.trade_qty; 
+                                        let buyer_holdings = buyer.holdings.get_mut(&market_id).unwrap();
+                                        let seller_holdings = seller.holdings.get_mut(&market_id).unwrap();
+
+                                        match trade.stock_type {
+                                            Option::OptionA => {
+                                                buyer_holdings.stock_a += trade.trade_qty;
+                                                seller_holdings.stock_a -= trade.trade_qty;
+                                        }
+                                            Option::OptionB => {
+                                                buyer_holdings.stock_b += trade.trade_qty;
+                                                seller_holdings.stock_b -= trade.trade_qty;
+                                        }
+                                        }
+                                    }
+                                }
                                 let msg = if trades.is_empty() {
                                     "Order placed, waiting to be matched.".to_string()
                                 } else{
