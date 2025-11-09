@@ -232,6 +232,50 @@ pub fn spawn_background_worker() -> mpsc::Sender<(Request)> {
                             let market = Market::initialise_market(market_name, username);
                             markets.insert(market.market_id.clone(), market);
                         }
+                        Request::MergeStocks { 
+                            username, 
+                            market_id, 
+                            amount, 
+                            resp
+                         } => {
+                            if let Some(user) = users.get_mut(&username) {
+                                // check holdings of both stock
+                                let holdings = user.holdings.entry(market_id).or_default();
+                                if holdings.stock_a < amount || holdings.stock_b < amount {
+                                    let _ = resp.send(Err("Insufficient token pairs to redeem".to_string()));
+                                    continue;
+                                }
+
+                                holdings.stock_a -= amount;
+                                holdings.stock_b -= amount;
+                                user.balance += amount;
+                                let _ = resp.send(Ok(format!("Redeemed {} pairs for ${}", amount, amount)));
+                            }
+                         }
+                         Request::SplitStocks { 
+                            username, 
+                            market_id, 
+                            amount, 
+                            resp
+                         } => {
+                            if let Some(user) = users.get_mut(&username){
+                                // check collateral and then lock
+                                if user.balance < amount {
+                                    let _ = resp.send(Err("Insufficient funds to mint".to_string()));
+                                    continue;
+                                }
+                                user.balance -= amount; // lock collateral 
+                                // mint equal amount a and b stocks to user
+                                let holdings = user.holdings.entry(market_id).or_default();
+                                holdings.stock_a += amount;
+                                holdings.stock_b += amount;
+
+                                let _ = resp.send(Ok(format!("Minted {} of Stock A and B", amount)));
+                            }
+                            else{
+                                let _ = resp.send(Err("User not found".to_string()));
+                            }
+                         }
                     }
                 }
                 None => break,

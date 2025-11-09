@@ -10,9 +10,6 @@ pub use utils::*;
 pub mod models;
 pub use models::*;
 
-async fn manual_hello() -> impl Responder {
-    HttpResponse::Ok().body("Hey there!")
-}
 pub struct AppState {
     worker: mpsc::Sender<Request>,
 }
@@ -26,6 +23,8 @@ async fn main() -> std::io::Result<()> {
             .service(signin)
             .service(create_limit_order)
             .service(create_market_order)
+            .service(split_stocks)
+            .service(merge)
     })
     .bind(("127.0.0.1", 8080))?
     .run()

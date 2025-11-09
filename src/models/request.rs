@@ -34,5 +34,17 @@ pub enum Request {
         username : String,
         market_name : String,
         resp: oneshot::Sender<Result<String, String>>
+    },
+    SplitStocks {
+        username: String,
+        market_id: String,
+        amount: u64, // Amount of user balance to lock up
+        resp: oneshot::Sender<Result<String, String>>,
+    },
+    MergeStocks {
+        username: String,
+        market_id: String,
+        amount: u64, // Amount of YES+NO pairs to burn
+        resp: oneshot::Sender<Result<String, String>>,
     }
 }
