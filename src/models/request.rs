@@ -15,7 +15,7 @@ pub enum Request {
     },
     CreateLimitOrder{
         username : String,
-        option : Option , // Option A or Option B (yes or no)
+        stock_type : StockType , // Option A or Option B (yes or no)
         price : u64,
         quantity : u64,
         ordertype : Ordertype,
@@ -24,7 +24,7 @@ pub enum Request {
     },
     CreateMarketOrder {
     username: String,
-    option: Option,
+    stock_type: StockType,
     quantity: u64,
     ordertype: Ordertype,
     market_id : String,

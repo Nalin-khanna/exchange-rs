@@ -7,7 +7,12 @@ pub struct User {
     pub balance: u64,
     pub holdings: HashMap<String, UserHoldings>, // market_id → holdings in that market
 }
-#[derive(Debug)]
+impl User {
+    pub fn get_holdings(&self, market_id: &str) -> UserHoldings {
+    self.holdings.get(market_id).cloned().unwrap_or_default()
+}
+}
+#[derive(Debug,Default , Clone)]
 pub struct UserHoldings {
     pub stock_a : u64,
     pub stock_b : u64

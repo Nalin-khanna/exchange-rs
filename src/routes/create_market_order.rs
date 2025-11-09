@@ -8,7 +8,7 @@ use crate::request::*;
 #[derive(Deserialize)]
 struct MarketOrderPayload {
     username : String,
-    option : Option , // Option A or Option B (yes or no)
+    stock_type : StockType , // Option A or Option B (yes or no)
     price : u64,
     quantity : u64,
     ordertype : Ordertype,
@@ -20,7 +20,7 @@ pub async fn create_market_order(data : web::Data<AppState> , payload : web::Jso
     let (tx , mut rx) = oneshot::channel::<Result<String,String>>();
     let req = Request::CreateMarketOrder { 
         username: payload.username.clone(), 
-        option: payload.option.clone(), 
+        stock_type: payload.stock_type.clone(), 
         quantity:payload.quantity,
         ordertype: payload.ordertype.clone(), 
         market_id : payload.market_id.clone(),

@@ -3,15 +3,17 @@ use chrono::{DateTime, Utc};
 use serde::Deserialize;
 use std::collections::{ BTreeMap , VecDeque};
 
+use crate::User;
+
 #[derive(Debug , Clone )]
 pub struct Order {
    pub price : u64, 
    pub quantity : u64,
-   pub option: Option,
+   pub stock_type: StockType,
    pub username : String,
    pub timestamp: DateTime<Utc>,
    pub ordertype: Ordertype,
-    
+   pub market_id : String
 }
 #[derive(Debug , Clone )]
 pub struct Trade {
@@ -19,12 +21,12 @@ pub struct Trade {
     pub to : String ,   // always the user who buys the stocks (buyer)
     pub trade_qty : u64 ,
     pub trade_price : u64 ,
-    pub stock_type : Option
+    pub stock_type : StockType
 }
 #[derive(Debug , Clone , PartialEq, Hash, Eq , Deserialize)]
-pub enum Option {
-    OptionA ,
-    OptionB 
+pub enum StockType {
+    StockA,
+    StockB 
 }
 #[derive(Debug , Clone , Deserialize)]
 pub enum Ordertype{
@@ -43,10 +45,17 @@ impl OrderBook {
     pub fn add_limit_order(
         &mut self,
         mut order : Order,
-    )-> Vec<Trade>{
+        user : &mut User
+    )-> Result<Vec<Trade> , String> {
         let mut trades = vec![];
         match order.ordertype {
             Ordertype::Buy => {
+                let required_balance = order.price * order.quantity;
+                if user.balance < order.price * order.quantity {
+                    return Err(format!("Insufficient funds. Required: {}, Available: {}", required_balance, user.balance));
+                }
+                user.balance -= order.price * order.quantity; // Funds locked immediately
+
                 while let Some((&lowest_sell_price , queue)) = self.sell.iter_mut().next(){
                     if order.price >= lowest_sell_price && order.quantity > 0{
                         if let Some (mut sell_order) = queue.pop_front(){
@@ -59,9 +68,9 @@ impl OrderBook {
                                 to : order.username.clone(),
                                 trade_qty,
                                 trade_price : lowest_sell_price,
-                                stock_type : sell_order.option.clone()
+                                stock_type : sell_order.stock_type.clone()
                             });
-                            if sell_order.quantity > 0 {          // if there is still qty left , push it back to front of queue
+                            if sell_order.quantity > 0 {          // if there is still qty left for sellorder, push it back to front of queue
                                 queue.push_front(sell_order);
                             }
                         }else{
@@ -76,19 +85,27 @@ impl OrderBook {
                 }
             }
             Ordertype::Sell => {
+                let holdings = user.holdings.entry(order.market_id.clone()).or_default();
+                let available_stock = match order.stock_type {
+                        StockType::StockA => &mut holdings.stock_a,
+                        StockType::StockB => &mut holdings.stock_b,
+                };
+                if *available_stock < order.quantity {
+                        return Err(format!("Insufficient stock. Required: {}, Available: {}", order.quantity, available_stock));
+                }
+                *available_stock -= order.quantity;  // lock the users stock 
                 while let Some((&highest_buy_price, queue)) = self.buy.iter_mut().next_back() {
                     if order.price <= highest_buy_price && order.quantity > 0 {
                         if let Some(mut buy_order) = queue.pop_front() {
                             let trade_qty = order.quantity.min(buy_order.quantity);
                             order.quantity -= trade_qty;
                             buy_order.quantity -= trade_qty;
-
                             trades.push(Trade { 
                                 from: order.username.clone(), 
                                 to: buy_order.username.clone(),
                                 trade_qty, 
                                 trade_price: highest_buy_price,
-                                stock_type : buy_order.option.clone()
+                                stock_type : buy_order.stock_type.clone()
                             });
 
                             if buy_order.quantity > 0 {
@@ -107,28 +124,30 @@ impl OrderBook {
                 }
             }
         }
-        trades
+        Ok(trades)
     }
     
-    pub fn execute_market_order(&mut self , username : String , ordertype : Ordertype , mut quantity : u64 ) -> Vec<Trade> {
+    pub fn execute_market_order(&mut self , username : String , ordertype : Ordertype , mut quantity : u64 , user : &mut User , market_id : String , stock_type : StockType ) -> Result<Vec<Trade>, String> {
         let mut trades = vec![];
-
         match ordertype {
             Ordertype::Buy => {
                 while quantity > 0 {
                     if let Some((&lowest_sell_price, queue)) = self.sell.iter_mut().next() {
                         if let Some(mut sell_order) = queue.pop_front() {
                             let trade_qty = quantity.min(sell_order.quantity);
+                            if user.balance < trade_qty * lowest_sell_price{
+                                break;
+                            }
                             quantity -= trade_qty;
                             sell_order.quantity -= trade_qty;
-
+                            user.balance -= trade_qty * lowest_sell_price;
                             trades.push(
                                 Trade{
                                     from : sell_order.username.clone(),
                                     to : username.clone(),
                                     trade_qty,
                                     trade_price : lowest_sell_price,
-                                    stock_type : sell_order.option.clone()
+                                    stock_type : sell_order.stock_type.clone()
                                 }
                             );
 
@@ -139,25 +158,37 @@ impl OrderBook {
                             self.sell.remove(&lowest_sell_price);
                         }
                     } else {
-                        break; // no sells left
+                         break; // no sells left
                     }
                 }
             }
 
             Ordertype::Sell => {
+                let holdings = user.holdings.entry(market_id.clone()).or_default();
+                let available_stock = match stock_type {
+                        StockType::StockA => &mut holdings.stock_a,
+                        StockType::StockB => &mut holdings.stock_b,
+                };
+                // return error if user has less stock than he is selling
+                 if *available_stock < quantity {
+                    return Err(format!("Insufficient stock. Required: {}, Available: {}", quantity, available_stock));
+                 }
+
                 while quantity > 0 {
                     if let Some((&highest_buy_price, queue)) = self.buy.iter_mut().next_back() {
                         if let Some(mut buy_order) = queue.pop_front() {
                             let trade_qty = quantity.min(buy_order.quantity);
+                           
                             quantity -= trade_qty;
                             buy_order.quantity -= trade_qty;
+                            *available_stock -= trade_qty;  // lock the users stock 
 
                             trades.push(Trade { 
                                 from: username.clone(), 
                                 to: buy_order.username.clone(), 
                                 trade_qty, 
                                 trade_price: highest_buy_price,
-                                stock_type : buy_order.option.clone()
+                                stock_type : buy_order.stock_type.clone()
                             });
 
                             if buy_order.quantity > 0 {
@@ -172,7 +203,6 @@ impl OrderBook {
                 }
             }
         }
-
-        trades
+       Ok(trades)
     }
 }
