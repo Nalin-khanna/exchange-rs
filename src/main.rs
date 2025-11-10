@@ -1,20 +1,11 @@
-use actix_web::{ web, App, HttpResponse, HttpServer, Responder};
-use tokio::sync::mpsc;
-pub mod routes;
-pub use routes::*;
-pub mod worker;
-pub use worker::processor;
-pub use worker::*;
-pub mod utils;
-pub use utils::*;
-pub mod models;
-pub use models::*;
+use actix_web::{ web, App,  HttpServer};
+use exchange_rs::processor::*;
+use exchange_rs::routes::*;
 
-pub struct AppState {
-    worker: mpsc::Sender<Request>,
-}
+
+use exchange_rs::AppState;
 #[actix_web::main]
-async fn main() -> std::io::Result<()> {
+pub async fn main() -> std::io::Result<()> {
     let worker = spawn_background_worker();
     HttpServer::new(move|| {
         App::new()

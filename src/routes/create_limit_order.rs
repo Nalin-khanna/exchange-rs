@@ -1,12 +1,11 @@
 use actix_web::{post ,web, HttpResponse, Responder};
 use tokio::sync::oneshot;
-use crate::{AppState, Request};
+use crate::{AppState, Request, auth_extractor::AuthenticatedUser};
 use serde::Deserialize;
 use crate::order::*;
 
 #[derive(Deserialize)]
 struct OrderPayload {
-    username : String,
     stock_type : StockType , // Option A or Option B (yes or no)
     price : u64,
     quantity : u64,
@@ -15,10 +14,10 @@ struct OrderPayload {
 }
 
 #[post("/limitorder")]
-pub async fn create_limit_order(data : web::Data<AppState> , payload : web::Json<OrderPayload>) -> impl Responder {
+pub async fn create_limit_order(data : web::Data<AppState> , payload : web::Json<OrderPayload>  , username : AuthenticatedUser ) -> impl Responder {
     let (tx , mut rx) = oneshot::channel::<Result<String,String>>();
     let req = Request::CreateLimitOrder { 
-        username: payload.username.clone(), 
+        username : username.username, 
         stock_type: payload.stock_type.clone(), 
         price: payload.price, 
         quantity:payload.quantity,

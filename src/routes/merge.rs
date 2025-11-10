@@ -1,21 +1,20 @@
 use actix_web::{post ,web, HttpResponse, Responder};
 use tokio::sync::oneshot;
-use crate::{AppState, Request};
+use crate::{AppState, Request, auth_extractor::AuthenticatedUser};
 use serde::Deserialize;
 use crate::order::*;
 
 #[derive(Deserialize)]
 struct Merge {
-    username: String,
     market_id: String,
     amount: u64,
 }
 
 #[post("/merge")]
-pub async fn merge(data : web::Data<AppState> , payload : web::Json<Merge>) -> impl Responder {
+pub async fn merge(data : web::Data<AppState> , payload : web::Json<Merge> , username : AuthenticatedUser) -> impl Responder {
     let (tx , mut rx) = oneshot::channel::<Result<String,String>>();
     let req = Request::MergeStocks { 
-        username: payload.username.clone(), 
+        username: username.username, 
         market_id : payload.market_id.clone(),
         amount : payload.amount,
         resp: tx

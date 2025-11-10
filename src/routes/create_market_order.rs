@@ -1,5 +1,6 @@
 use actix_web::{post ,web, HttpResponse, Responder};
 use tokio::sync::oneshot;
+use crate::auth_extractor::AuthenticatedUser;
 use crate::{AppState, Request};
 use serde::Deserialize;
 use crate::order::*;
@@ -7,7 +8,7 @@ use crate::request::*;
 
 #[derive(Deserialize)]
 struct MarketOrderPayload {
-    username : String,
+    
     stock_type : StockType , // Option A or Option B (yes or no)
     price : u64,
     quantity : u64,
@@ -16,10 +17,10 @@ struct MarketOrderPayload {
 }
 
 #[post("/marketorder")]
-pub async fn create_market_order(data : web::Data<AppState> , payload : web::Json<MarketOrderPayload>) -> impl Responder {
+pub async fn create_market_order(data : web::Data<AppState> , payload : web::Json<MarketOrderPayload>,  username : AuthenticatedUser) -> impl Responder {
     let (tx , mut rx) = oneshot::channel::<Result<String,String>>();
     let req = Request::CreateMarketOrder { 
-        username: payload.username.clone(), 
+        username: username.username, 
         stock_type: payload.stock_type.clone(), 
         quantity:payload.quantity,
         ordertype: payload.ordertype.clone(), 

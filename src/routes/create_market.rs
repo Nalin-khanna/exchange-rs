@@ -1,20 +1,19 @@
 use actix_web::{post ,web, HttpResponse, Responder};
 use tokio::sync::oneshot;
-use crate::{AppState, Request};
+use crate::{AppState, Request, auth_extractor::AuthenticatedUser};
 use serde::Deserialize;
 use crate::order::*;
 
 #[derive(Deserialize)]
 struct CreateMarketPayload {
-    username : String, 
     market_name : String
 }
 
 #[post("/create_market")]
-pub async fn create_market(data : web::Data<AppState> , payload : web::Json<CreateMarketPayload>) -> impl Responder {
+pub async fn create_market(data : web::Data<AppState> , payload : web::Json<CreateMarketPayload> , username : AuthenticatedUser) -> impl Responder {
     let (tx , mut rx) = oneshot::channel::<Result<String,String>>();
     let req = Request::CreateMarket { 
-        username: payload.username.clone(), 
+        username: username.username, 
         market_name : payload.market_name.clone(),
         resp: tx
     };

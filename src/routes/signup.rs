@@ -12,7 +12,7 @@ pub struct SignupPayload{
 
 #[post("/signup")]
 pub async fn signup(data : web::Data<AppState> , payload : web::Json<SignupPayload>) -> impl Responder {
-    let (tx , mut rx) = oneshot::channel::<Result<String,String>>();
+    let (tx ,  rx) = oneshot::channel::<Result<String,String>>();
     let req = Request::Signup { 
         username: payload.username.clone(), 
         password: hash_password(&payload.password), 
