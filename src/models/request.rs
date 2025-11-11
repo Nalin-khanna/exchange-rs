@@ -1,4 +1,7 @@
-use crate::order::*;
+use std::collections::HashMap;
+
+use crate::{UserHoldings, order::*};
+use serde::Serialize;
 use tokio::sync::oneshot;
 
 #[derive(Debug)]
@@ -46,5 +49,15 @@ pub enum Request {
         market_id: String,
         amount: u64, // Amount of YES+NO pairs to burn
         resp: oneshot::Sender<Result<String, String>>,
+    },
+    UserDetails{
+        username : String ,
+        resp: oneshot::Sender<Result<UserDetails, String>>,
     }
+}
+
+#[derive(Debug , Clone , Serialize)]
+pub struct UserDetails{
+    pub balance : u64,
+    pub holdings : HashMap<String ,UserHoldings > 
 }

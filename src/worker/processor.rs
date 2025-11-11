@@ -229,8 +229,21 @@ pub fn spawn_background_worker() -> mpsc::Sender<(Request)> {
                             market_name,
                             resp,
                         } => {
+                            if !users.contains_key(&username) {
+                                let _ = resp.send(Err("User does not exist".to_string()));
+                                continue;
+                            }
                             let market = Market::initialise_market(market_name, username);
-                            markets.insert(market.market_id.clone(), market);
+                            let market_id = market.market_id.clone();
+                            match  markets.insert(market.market_id.to_string(), market) {
+                                Some(market) => {
+                                    let _ = resp.send(Err("Market already exists".to_string()));
+                                }
+                                None => {
+                                    let _ = resp.send(Ok(market_id));   // hashmap insert returns none when added and Some when already exists
+                                }
+                            };
+                            
                         }
                         Request::MergeStocks { 
                             username, 
@@ -264,18 +277,45 @@ pub fn spawn_background_worker() -> mpsc::Sender<(Request)> {
                                     let _ = resp.send(Err("Insufficient funds to mint".to_string()));
                                     continue;
                                 }
-                                user.balance -= amount; // lock collateral 
+                                // checking if market exists
+                                let market = markets.get(&market_id) ;
+                                if market.is_none() {
+                                    let _ = resp.send(Err("Market does not exists".to_string()));
+                                    continue;
+                                }
+                                user.balance -= amount; // lock collateral
                                 // mint equal amount a and b stocks to user
-                                let holdings = user.holdings.entry(market_id).or_default();
+                                let holdings = user.holdings.entry(market_id.clone()).or_insert(
+                                    UserHoldings { 
+                                        stock_a:0 , 
+                                        stock_b: 0
+                                    }
+                                );
                                 holdings.stock_a += amount;
                                 holdings.stock_b += amount;
-
                                 let _ = resp.send(Ok(format!("Minted {} of Stock A and B", amount)));
                             }
                             else{
                                 let _ = resp.send(Err("User not found".to_string()));
                             }
                          }
+                         Request::UserDetails { 
+                            username, 
+                            resp 
+                        } => {
+                             let user = match users.get(&username) { 
+                                Some(user) => {
+                                    let userDetails = UserDetails{
+                                        balance : user.balance,
+                                        holdings : user.holdings.clone()
+                                    };
+                                    let _ = resp.send(Ok(userDetails));
+                                }None => {
+                                    let _ = resp.send(Err("User does not exist".to_string()));
+                                    continue;
+                                }
+                             };
+                        }
                     }
                 }
                 None => break,

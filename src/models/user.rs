@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use serde::Serialize;
+
 #[derive(Debug)]
 pub struct User {
     pub username : String ,
@@ -12,7 +14,7 @@ impl User {
     self.holdings.get(market_id).cloned().unwrap_or_default()
 }
 }
-#[derive(Debug,Default , Clone)]
+#[derive(Debug,Default , Clone , Serialize)]
 pub struct UserHoldings {
     pub stock_a : u64,
     pub stock_b : u64
