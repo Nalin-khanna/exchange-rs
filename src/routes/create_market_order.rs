@@ -10,7 +10,6 @@ use crate::request::*;
 struct MarketOrderPayload {
     
     stock_type : StockType , // Option A or Option B (yes or no)
-    price : u64,
     quantity : u64,
     ordertype : Ordertype,
     market_id : String
