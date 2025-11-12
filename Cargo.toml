@@ -12,3 +12,4 @@ bcrypt = "0.15"
 nanoid = "0.4.0"
 chrono = {version = "0.4.42" , features = ["serde"]}
 jsonwebtoken = { version = "10", features = ["aws_lc_rs"] }
+dotenvy = "0.15.7"

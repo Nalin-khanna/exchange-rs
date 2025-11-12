@@ -1,12 +1,10 @@
 use actix_web::{get , web, HttpResponse, Responder};
 use tokio::sync::oneshot;
 use crate::{AppState, Request, UserDetails, auth_extractor::AuthenticatedUser};
-use serde::Deserialize;
-use crate::hash::*;
 
 
 #[get("/user_details")]
-pub async fn signup(data : web::Data<AppState> , username : AuthenticatedUser) -> impl Responder {
+pub async fn user_details(data : web::Data<AppState> , username : AuthenticatedUser) -> impl Responder {
     let (tx ,  rx) = oneshot::channel::<Result<UserDetails,String>>();
     let req = Request::UserDetails  { 
         username: username.username, 

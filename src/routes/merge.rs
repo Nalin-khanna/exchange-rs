@@ -2,7 +2,6 @@ use actix_web::{post ,web, HttpResponse, Responder};
 use tokio::sync::oneshot;
 use crate::{AppState, Request, auth_extractor::AuthenticatedUser};
 use serde::Deserialize;
-use crate::order::*;
 
 #[derive(Deserialize)]
 struct Merge {
@@ -12,7 +11,7 @@ struct Merge {
 
 #[post("/merge")]
 pub async fn merge(data : web::Data<AppState> , payload : web::Json<Merge> , username : AuthenticatedUser) -> impl Responder {
-    let (tx , mut rx) = oneshot::channel::<Result<String,String>>();
+    let (tx , rx) = oneshot::channel::<Result<String,String>>();
     let req = Request::MergeStocks { 
         username: username.username, 
         market_id : payload.market_id.clone(),
