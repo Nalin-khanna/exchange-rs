@@ -37,150 +37,255 @@ Polymarket-rs is a high-performance, in-memory prediction market platform writte
 8. *Concurrency Safe*: All state-mutating logic is fully encapsulated within the single-threaded actor.
 
 
-**API Reference**
+##  API Reference
 
-All routes communicate with the background worker via a message-passing (actor) channel.
-Responses are JSON and follow this general pattern:
+> **Base URL:** https://shark-app-iypfs.ondigitalocean.app
 
-User Management
-POST /signup
+All routes communicate with the background worker via a message-passing (actor) channel. Responses are in JSON format.
+
+---
+
+### User Management
+
+#### `POST /signup`
 Create a new user.
-Request:
-json{
+
+**Request:**
+```json
+{
   "username": "user1",
   "password": "secret123"
 }
-Response:
-json{
-  "msg" : "user1"
-}
-POST /signin
-Authenticate an existing user.
-Request:
-json{
-  "username": "user1",
-  "password": "secret123"
-}
-Response:
-json{
-  "token": jwt token,
+```
+
+**Response:**
+```json
+{
   "msg": "user1"
 }
+```
 
-Market Management
-POST /create_market
+#### `POST /signin`
+Authenticate an existing user.
+
+**Request:**
+```json
+{
+  "username": "user1",
+  "password": "secret123"
+}
+```
+
+**Response:**
+```json
+{
+  "token": "jwt_token_here",
+  "msg": "user1"
+}
+```
+
+---
+
+### Market Management
+
+#### `POST /create_market`
 Create a new prediction market.
-Request:
-json{
+
+**Request:**
+```json
+{
   "market_name": "Will BTC be above $100k by 2026?"
 }
-Response: market_id
+```
 
-Split (Mint) Stocks
-POST /split_stocks
+**Response:**
+```json
+{
+  "market_id": "abc123xyz"
+}
+```
+
+---
+
+### Split (Mint) Stocks
+
+#### `POST /split_stocks`
 Mint Stock A and Stock B for a given market by locking collateral from user balance.
-Request:
-json{
+
+**Request:**
+```json
+{
   "market_id": "abc123xyz",
   "amount": 100
 }
-Response:
-json{
+```
+
+**Response:**
+```json
+{
   "status": "success",
   "data": "Minted 100 of Stock A and B"
 }
+```
 
-Orders
-POST /limitorder
+---
+
+### Orders
+
+#### `POST /limitorder`
 Create a limit order for a given outcome.
-Request:
-json{
-  "stock_type" : "StockA"/"StockB" 
+
+**Request:**
+```json
+{
+  "stock_type": "StockA",
   "market_id": "abc123xyz",
   "price": 45,
   "quantity": 10,
-  "ordertype": "Buy"/"Sell"
+  "ordertype": "Buy"
 }
-Example Response:
-[Trade { from: "user1", to: "user2", trade_qty: 10, trade_price: 45, stock_type: StockA }]
-or 
-Response : "Order placed waiting to be matched" if order not matched
-POST /marketorder
-Execute a market order that fills against the best available limit orders.
-Request:
-json{
-  "market_id": "abc123xyz",
-  "stock_type" : "StockA"/"StockB",
-  "quantity": 10,
-  "ordertype": "Buy"/"Sell"
-}
+```
 
-Example Response:
-[Trade { from: "user1", to: "user2", trade_qty: 10, trade_price: 45, stock_type: StockA }]
+**Note:** `stock_type` can be `"StockA"` or `"StockB"`. `ordertype` can be `"Buy"` or `"Sell"`.
 
-Query Endpoints
-GET /user_details
-Fetch user details including balance and holdings.
-Response:
-json
+**Response (Matched):**
+```json
+[
   {
-    "balance": u64,
-    "holdings": {
-        "stock_a" : u64,
-        "stock_b" : u64
-    }
-}
+    "from": "user1",
+    "to": "user2",
+    "trade_qty": 10,
+    "trade_price": 45,
+    "stock_type": "StockA"
+  }
+]
+```
 
-GET /get_orderbook
-Fetch details of a specific market.
-Response:
-json{
+**Response (Not Matched):**
+```json
+{
+  "msg": "Order placed waiting to be matched"
+}
+```
+
+#### `POST /marketorder`
+Execute a market order that fills against the best available limit orders.
+
+**Request:**
+```json
+{
+  "market_id": "abc123xyz",
+  "stock_type": "StockA",
+  "quantity": 10,
+  "ordertype": "Buy"
+}
+```
+
+**Note:** `stock_type` can be `"StockA"` or `"StockB"`. `ordertype` can be `"Buy"` or `"Sell"`.
+
+**Response:**
+```json
+[
+  {
+    "from": "user1",
+    "to": "user2",
+    "trade_qty": 10,
+    "trade_price": 45,
+    "stock_type": "StockA"
+  }
+]
+```
+
+---
+
+### Query Endpoints
+
+#### `GET /user_details`
+Fetch user details including balance and holdings.
+
+**Response:**
+```json
+{
+  "balance": 1000,
+  "holdings": {
+    "stock_a": 50,
+    "stock_b": 50
+  }
+}
+```
+
+#### `GET /get_orderbook`
+Fetch the complete order book for a specific market.
+
+**Response:**
+```json
+{
   "stock_a": {
     "buy": {
-        key (u64) : Array <{
-                    "price": u64,
-                    "quantity": u64,
-                    "stock_type": "StockA"/"StockB",
-                    "username": String,
-                    "timestamp": String,
-                    "ordertype": "Buy"/"Sell",
-                    "market_id": String
-                }>
+      "45": [
+        {
+          "price": 45,
+          "quantity": 10,
+          "stock_type": "StockA",
+          "username": "user1",
+          "timestamp": "2025-11-12T10:30:00Z",
+          "ordertype": "Buy",
+          "market_id": "abc123xyz"
+        }
+      ]
     },
     "sell": {
-        key (u64) : Array <{
-                    "price": u64,
-                    "quantity": u64,
-                    "stock_type": "StockA"/"StockB",
-                    "username": String,
-                    "timestamp": String,
-                    "ordertype": "Buy"/"Sell",
-                    "market_id": String
-                }>
+      "55": [
+        {
+          "price": 55,
+          "quantity": 10,
+          "stock_type": "StockA",
+          "username": "user2",
+          "timestamp": "2025-11-12T10:31:00Z",
+          "ordertype": "Sell",
+          "market_id": "abc123xyz"
+        }
+      ]
     }
   },
-  "stock_b" " {
+  "stock_b": {
     "buy": {
-        key (u64) : Array <{
-                    "price": u64,
-                    "quantity": u64,
-                    "stock_type": "StockA"/"StockB",
-                    "username": String,
-                    "timestamp": String,
-                    "ordertype": "Buy"/"Sell",
-                    "market_id": String
-                }>
+      "40": [
+        {
+          "price": 40,
+          "quantity": 5,
+          "stock_type": "StockB",
+          "username": "user3",
+          "timestamp": "2025-11-12T10:32:00Z",
+          "ordertype": "Buy",
+          "market_id": "abc123xyz"
+        }
+      ]
     },
     "sell": {
-        key (u64) : Array <{
-                    "price": u64,
-                    "quantity": u64,
-                    "stock_type": "StockA"/"StockB",
-                    "username": String,
-                    "timestamp": String,
-                    "ordertype": "Buy"/"Sell",
-                    "market_id": String
-                }>
+      "60": [
+        {
+          "price": 60,
+          "quantity": 5,
+          "stock_type": "StockB",
+          "username": "user4",
+          "timestamp": "2025-11-12T10:33:00Z",
+          "ordertype": "Sell",
+          "market_id": "abc123xyz"
+        }
+      ]
     }
   }
 }
+```
+
+**Structure:**
+- Orders are grouped by `stock_type` (`stock_a` or `stock_b`)
+- Each stock type has `buy` and `sell` sides
+- Orders are keyed by price level (as strings)
+- Each price level contains an array of order objects
+**Structure:**
+- Orders are grouped by `stock_type` (`stock_a` or `stock_b`)
+- Each stock type has `buy` and `sell` sides
+- Orders are keyed by price level (as strings)
+- Each price level contains an array of order objects
